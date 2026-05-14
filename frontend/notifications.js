@@ -1,65 +1,13 @@
-const notifications = [
-  {
-    id: 'order-spinach',
-    type: 'order',
-    title: 'New order request',
-    body: 'Maya Green Farm received a request for two crates of spinach for pickup today.',
-    time: '8 minutes ago',
-    href: 'product.html',
-    read: false,
-    sender: 'Maya Green Farm',
-    senderRole: 'Customer',
-  },
-  {
-    id: 'message-berry',
-    type: 'message',
-    title: 'New message from Ulsan Berry Co-op',
-    body: 'The strawberry boxes are packed and ready for pickup between 3 PM and 5 PM.',
-    time: '24 minutes ago',
-    href: 'messages.html',
-    read: false,
-    sender: 'Ulsan Berry Co-op',
-    senderRole: 'Customer',
-  },
-  {
-    id: 'profile-live',
-    type: 'market',
-    title: 'Profile is visible to buyers',
-    body: 'Your farmer profile is now appearing in FarmersHub search and nearby recommendations.',
-    time: 'Today',
-    href: 'profile.html',
-    read: true,
-    sender: 'FarmersHub Team',
-    senderRole: 'System',
-  },
-  {
-    id: 'listing-trending',
-    type: 'market',
-    title: 'Tomato listing is getting attention',
-    body: 'Your tomato listing was viewed more than usual this week. Consider updating quantity if stock changed.',
-    time: 'Yesterday',
-    href: 'product.html',
-    read: false,
-    sender: 'Marketplace Insights',
-    senderRole: 'System',
-  },
-  {
-    id: 'order-rice',
-    type: 'order',
-    title: 'Order marked complete',
-    body: 'The brown rice order was marked complete. Payment and review details are ready.',
-    time: 'Mon',
-    href: 'product.html',
-    read: true,
-    sender: 'Harvest Logistics',
-    senderRole: 'Customer',
-  },
-];
+import { apiFetch, jsonHeaders } from './assets/js/config/api.config.js';
+
+let notifications = [];
+
 
 const typeLabels = {
   order: 'Order',
   message: 'Message',
   market: 'Marketplace',
+  friend_request: 'Friend request',
 };
 
 const listEl = document.getElementById('notificationList');
@@ -113,6 +61,16 @@ function setupSessionNav() {
       });
       window.location.reload();
     });
+  }
+}
+
+async function loadNotifications() {
+  try {
+    const response = await apiFetch('/users/notifications', { headers: jsonHeaders() });
+    notifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
+  } catch (error) {
+    notifications = [];
+    statusEl.textContent = 'Unable to load notifications from the server.';
   }
 }
 
@@ -200,7 +158,7 @@ function createNotificationCard(item) {
   const openLink = document.createElement('a');
   openLink.className = 'open-link';
   openLink.href = item.href;
-  openLink.textContent = item.type === 'message' ? 'Open chat' : 'View details';
+  openLink.textContent = item.type === 'message' ? 'Open chat' : item.type === 'friend_request' ? 'View profile' : 'View details';
   openLink.setAttribute('aria-label', `Open ${item.type} notification`);
   actions.append(openLink);
 
@@ -375,6 +333,6 @@ refreshBtn.addEventListener('click', () => {
   window.setTimeout(renderNotifications, 700);
 });
 
+await loadNotifications();
 setupSessionNav();
 renderNotifications();
-simulateRealtimeUpdates();

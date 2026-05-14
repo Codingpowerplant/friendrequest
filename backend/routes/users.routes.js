@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllUsers,
+  getNotifications,
   deactivateUser,
 } = require('../controllers/userController');
 const {
@@ -9,6 +10,8 @@ const {
   updateCurrentProfile,
   uploadAvatar,
   uploadCover,
+  getProfileById,
+  sendFriendRequest,
 } = require('../controllers/profileController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { uploader, withUploadFolder } = require('../middleware/upload');
@@ -46,6 +49,15 @@ router.post('/avatar', withUploadFolder('profiles'), uploader.single('avatar'), 
 
 // POST /api/users/cover     — upload profile cover image
 router.post('/cover', withUploadFolder('profiles'), uploader.single('cover'), uploadCover);
+
+// GET /api/users/notifications — current user's notifications
+router.get('/notifications', getNotifications);
+
+// GET /api/users/:id         — view another user's public profile
+router.get('/:id', getProfileById);
+
+// POST /api/users/:id/friend-request — send friend request to another user
+router.post('/:id/friend-request', sendFriendRequest);
 
 // ── Admin only ────────────────────────────────────────────────────────────────
 // GET  /api/users           — list all users
