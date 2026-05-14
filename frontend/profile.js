@@ -1,10 +1,8 @@
-import { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover, getUserById, sendFriendRequest } from './js/profileService.js';
+import { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover } from './js/profileService.js';
 import { getFeed, createPost, deletePost } from './js/postService.js';
-import { isLoggedIn, logout, getCurrentUser } from './js/authService.js';
+import { isLoggedIn, logout } from './js/authService.js';
 
 let currentProfile = null;
-let currentUser = null;
-let currentViewedUserId = null;
 
 function setStatus(message, type = 'info') {
   const el = document.getElementById('actionStatus');
@@ -85,85 +83,9 @@ function openEditModal() {
   document.getElementById('editModal').style.display = 'flex';
 }
 
-function getViewedProfileId() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('user') || params.get('farmer') || null;
-}
-
-function updateProfileActions(profile) {
-  const editBtn = document.getElementById('editProfileBtn');
-  const addFriendBtn = document.getElementById('addFriendBtn');
-
-  if (!profile || !currentUser) {
-    if (editBtn) editBtn.style.display = 'none';
-    if (addFriendBtn) addFriendBtn.style.display = 'none';
-    return;
-  }
-
-  const viewerId = String(currentUser._id || currentUser.id || currentUser.userId || '');
-  const profileId = String(profile.userId || profile.id || '');
-  const isOwnProfile = viewerId === profileId;
-
-  if (editBtn) editBtn.style.display = isOwnProfile ? 'inline-flex' : 'none';
-  if (!addFriendBtn) return;
-
-  if (isOwnProfile) {
-    addFriendBtn.style.display = 'none';
-    return;
-  }
-
-  addFriendBtn.style.display = 'inline-flex';
-  addFriendBtn.disabled = false;
-  addFriendBtn.textContent = '➕ Add Friend';
-
-  if (profile.relationship?.isFriend) {
-    addFriendBtn.textContent = 'Friends';
-    addFriendBtn.disabled = true;
-  } else if (profile.relationship?.requestSent) {
-    addFriendBtn.textContent = 'Request sent';
-    addFriendBtn.disabled = true;
-  } else if (profile.relationship?.requestReceived) {
-    addFriendBtn.textContent = 'Request received';
-    addFriendBtn.disabled = true;
-  }
-}
-
-async function handleAddFriend() {
-  if (!currentProfile || !currentProfile.userId) return;
-
-  const addFriendBtn = document.getElementById('addFriendBtn');
-  if (!addFriendBtn) return;
-
-  addFriendBtn.disabled = true;
-  addFriendBtn.textContent = 'Sending...';
-
-  try {
-    await sendFriendRequest(currentProfile.userId);
-    setStatus('Friend request sent successfully.', 'success');
-    currentProfile.relationship = currentProfile.relationship || {};
-    currentProfile.relationship.requestSent = true;
-    updateProfileActions(currentProfile);
-  } catch (error) {
-    setStatus(error.message || 'Failed to send friend request.', 'error');
-    addFriendBtn.disabled = false;
-    addFriendBtn.textContent = '➕ Add Friend';
-  }
-}
-
 async function loadProfileData() {
-  const viewedId = getViewedProfileId();
-  currentViewedUserId = viewedId;
-
-  if (viewedId) {
-    const response = await getUserById(viewedId);
-    renderProfile(response.data);
-    updateProfileActions(response.data);
-    return;
-  }
-
   const response = await getProfile();
   renderProfile(response.data);
-  updateProfileActions(response.data);
 }
 
 function renderPosts(posts) {
@@ -307,8 +229,6 @@ async function handlePostSubmit() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  currentUser = getCurrentUser();
-
   document.getElementById('goLoginBtn').addEventListener('click', () => {
     window.location.href = 'login/login.html';
   });
@@ -332,7 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('avatarInput').addEventListener('change', handleAvatarUpload);
   document.getElementById('coverInput').addEventListener('change', handleCoverUpload);
   document.getElementById('submitPostBtn').addEventListener('click', handlePostSubmit);
-  document.getElementById('addFriendBtn').addEventListener('click', handleAddFriend);
   document.getElementById('postImageInput').addEventListener('change', (event) => {
     const name = event.target.files[0] ? event.target.files[0].name : '';
     document.getElementById('postImageName').textContent = name;

@@ -83,15 +83,6 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
-const getNotifications = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user._id).select('notifications');
-    return successResponse(res, 'Notifications loaded', { notifications: user?.notifications || [] });
-  } catch (err) {
-    next(err);
-  }
-};
-
 /**
  * DELETE /api/users/:id  (admin only)
  * Deactivates a user account (soft delete).
@@ -112,4 +103,4 @@ const deactivateUser = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, uploadAvatar, getAllUsers, getNotifications, deactivateUser };
+module.exports = { getProfile, updateProfile, uploadAvatar, getAllUsers, deactivateUser };

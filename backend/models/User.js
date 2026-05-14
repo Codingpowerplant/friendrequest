@@ -71,38 +71,6 @@ const userSchema = new mongoose.Schema(
       enum: ['cash', 'card', 'bank_transfer', 'mobile_pay', 'Credit / Debit Card', ''],
       default: '',
     },
-    incomingFriendRequests: [
-      {
-        from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-    outgoingFriendRequests: [
-      {
-        to: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-    friends: [
-      {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        since: { type: Date, default: Date.now },
-      },
-    ],
-    notifications: [
-      {
-        type: { type: String, required: true },
-        title: { type: String, required: true },
-        body: { type: String, required: true },
-        href: { type: String, default: '' },
-        senderName: { type: String, default: 'FarmersHub' },
-        senderRole: { type: String, default: 'System' },
-        read: { type: Boolean, default: false },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
   },
   { timestamps: true }
 );

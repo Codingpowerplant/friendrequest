@@ -40,16 +40,4 @@ async function uploadCover(file) {
   });
 }
 
-async function getUserById(id) {
-  return apiFetch(`/users/${encodeURIComponent(id)}`, { headers: jsonHeaders() });
-}
-
-async function sendFriendRequest(id) {
-  return apiFetch(`/users/${encodeURIComponent(id)}/friend-request`, {
-    method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify({}),
-  });
-}
-
-export { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover, getUserById, sendFriendRequest };
+export { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover };

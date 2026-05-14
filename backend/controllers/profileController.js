@@ -69,78 +69,9 @@ async function getProfileById(req, res) {
         const baseUser = normalizeBaseUser(foundUser);
         const profile = await ensureProfile(baseUser);
         const data = await buildProfileResponse(profile, baseUser, req);
-
-        if (req.user) {
-            const currentUserId = String(req.user._id || req.user.id);
-            const targetUserId = String(foundUser._id || foundUser.id);
-            data.relationship = {
-                isOwnProfile: currentUserId === targetUserId,
-                isFriend: Array.isArray(req.user.friends) && req.user.friends.some((item) => String(item.userId) === targetUserId),
-                requestSent: Array.isArray(req.user.outgoingFriendRequests) && req.user.outgoingFriendRequests.some((item) => String(item.to) === targetUserId && item.status === 'pending'),
-                requestReceived: Array.isArray(req.user.incomingFriendRequests) && req.user.incomingFriendRequests.some((item) => String(item.from) === targetUserId && item.status === 'pending'),
-            };
-        }
-
         return res.json({ success: true, data });
     } catch (error) {
         return res.status(400).json({ success: false, message: 'Invalid profile id.' });
-    }
-}
-
-async function sendFriendRequest(req, res) {
-    try {
-        const requesterId = String(req.user._id || req.user.id);
-        const recipientId = String(req.params.id);
-
-        if (requesterId === recipientId) {
-            return res.status(400).json({ success: false, message: 'You cannot send a friend request to yourself.' });
-        }
-
-        const recipient = await User.findById(recipientId);
-        if (!recipient || !recipient.isActive) {
-            return res.status(404).json({ success: false, message: 'Recipient not found.' });
-        }
-
-        const alreadyFriends = Array.isArray(req.user.friends) && req.user.friends.some((item) => String(item.userId) === recipientId);
-        if (alreadyFriends) {
-            return res.status(400).json({ success: false, message: 'You are already friends with this user.' });
-        }
-
-        const existingOutgoing = Array.isArray(req.user.outgoingFriendRequests) && req.user.outgoingFriendRequests.some((item) => String(item.to) === recipientId && item.status === 'pending');
-        if (existingOutgoing) {
-            return res.status(400).json({ success: false, message: 'Friend request already sent.' });
-        }
-
-        const existingIncoming = Array.isArray(req.user.incomingFriendRequests) && req.user.incomingFriendRequests.some((item) => String(item.from) === recipientId && item.status === 'pending');
-        if (existingIncoming) {
-            return res.status(400).json({ success: false, message: 'This user has already sent you a friend request.' });
-        }
-
-        await User.findByIdAndUpdate(req.user._id, {
-            $push: {
-                outgoingFriendRequests: { to: recipientId, status: 'pending', createdAt: new Date() },
-            },
-        });
-
-        await User.findByIdAndUpdate(recipientId, {
-            $push: {
-                incomingFriendRequests: { from: req.user._id, status: 'pending', createdAt: new Date() },
-                notifications: {
-                    type: 'friend_request',
-                    title: 'New friend request',
-                    body: `${req.user.fullName || 'Someone'} has sent you a friend request.`,
-                    href: `profile.html?user=${requesterId}`,
-                    senderName: req.user.fullName || 'Unknown user',
-                    senderRole: req.user.role || 'Member',
-                    read: false,
-                    createdAt: new Date(),
-                },
-            },
-        });
-
-        return res.json({ success: true, message: 'Friend request sent.' });
-    } catch (error) {
-        return res.status(400).json({ success: false, message: 'Failed to send friend request.' });
     }
 }
 
@@ -250,7 +181,6 @@ async function uploadCover(req, res) {
 module.exports = {
     getCurrentProfile,
     getProfileById,
-    sendFriendRequest,
     updateCurrentProfile,
     updateFarmerProfile,
     uploadAvatar,
