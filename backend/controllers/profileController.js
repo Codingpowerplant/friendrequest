@@ -250,6 +250,7 @@ async function uploadCover(req, res) {
 module.exports = {
     getCurrentProfile,
     getProfileById,
+    sendFriendRequest,
     updateCurrentProfile,
     updateFarmerProfile,
     uploadAvatar,
