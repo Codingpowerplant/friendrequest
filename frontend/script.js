@@ -2,6 +2,31 @@ import { getFarmers } from './js/farmerService.js';
 import { getProducts } from './js/productService.js';
 import { getFeed } from './js/postService.js';
 
+// Hero Modal Handler
+function initHeroModal() {
+  const heroModal = document.getElementById('heroModal');
+  const heroModalClose = document.getElementById('heroModalClose');
+  const heroModalOverlay = document.querySelector('.hero-modal-overlay');
+  
+  function closeModal() {
+    heroModal.classList.add('hidden');
+    localStorage.setItem('heroModalDismissed', 'true');
+  }
+  
+  heroModalClose?.addEventListener('click', closeModal);
+  heroModalOverlay?.addEventListener('click', closeModal);
+  
+  // Show modal on first visit or if not dismissed
+  const isDismissed = localStorage.getItem('heroModalDismissed');
+  if (!isDismissed && heroModal) {
+    heroModal.classList.remove('hidden');
+  } else if (heroModal) {
+    heroModal.classList.add('hidden');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initHeroModal);
+
 (function () {
   let feedCache = [];
 
