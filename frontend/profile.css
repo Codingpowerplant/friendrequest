@@ -439,6 +439,7 @@ a {
   background: #f2f6f1;
   border: 1px solid var(--line);
   color: #33463d;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {
