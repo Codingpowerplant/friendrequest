@@ -1,5 +1,7 @@
 import { API_BASE } from './assets/js/config/api.config.js';
 
+const ALERT_READ_SYNC_KEY = 'fh_alerts_read_sync';
+
 // API functions for notifications
 async function fetchNotifications() {
   try {
@@ -306,7 +308,8 @@ function createNotificationCard(item) {
   const readBtn = document.createElement('button');
   readBtn.type = 'button';
   readBtn.dataset.action = 'toggle-read';
-  readBtn.textContent = item.read ? 'Mark unread' : 'Mark read';
+  readBtn.textContent = item.read ? 'Read' : 'Mark read';
+  readBtn.disabled = item.read;
   actions.append(readBtn);
 
   card.append(dot, content, actions);
@@ -335,6 +338,10 @@ function renderNotifications() {
   filtered.forEach((item) => {
     listEl.appendChild(createNotificationCard(item));
   });
+}
+
+function syncFloatingAlertState() {
+  localStorage.setItem(ALERT_READ_SYNC_KEY, String(Date.now()));
 }
 
 function openReplyModal(item) {
@@ -367,6 +374,7 @@ function sendReply() {
   markAsRead(currentReplyTargetId);
 
   item.read = true;
+  syncFloatingAlertState();
   statusEl.textContent = messageText
     ? `Reply sent to ${item.sender}.`
     : `Closed reply to ${item.sender}.`;
@@ -379,6 +387,7 @@ function showHistory(item) {
   // Mark as read via API
   markAsRead(item.id);
   item.read = true;
+  syncFloatingAlertState();
   renderNotifications();
 }
 
@@ -409,7 +418,8 @@ async function handleNotificationListClick(event) {
       // Update local state
       const item = notifications.find(n => n.id === notificationId);
       if (item) {
-        item.read = !item.read;
+        item.read = true;
+        syncFloatingAlertState();
         renderNotifications();
       }
     }
@@ -460,6 +470,7 @@ markAllReadBtn.addEventListener('click', async () => {
     notifications.forEach((item) => {
       item.read = true;
     });
+    syncFloatingAlertState();
     renderNotifications();
   }
 });

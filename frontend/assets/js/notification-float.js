@@ -2,6 +2,7 @@ import { API_BASE, getToken } from './config/api.config.js';
 
 const POLL_INTERVAL_MS = 30000;
 const DISMISSED_KEY = 'fh_alert_float_dismissed_signature';
+const READ_SYNC_KEY = 'fh_alerts_read_sync';
 const FLOAT_ID = 'floatingAlertTab';
 
 let pollTimer = null;
@@ -175,6 +176,7 @@ function dismissCurrentBatch() {
 
 function openAlertsPage() {
   const isNestedLoginPage = window.location.pathname.toLowerCase().includes('/login/');
+  dismissCurrentBatch();
   window.location.href = isNestedLoginPage ? '../notifications.html' : 'notifications.html';
 }
 
@@ -231,6 +233,17 @@ function initFloatingAlertTab() {
 
   refreshFloatingTab();
   pollTimer = window.setInterval(refreshFloatingTab, POLL_INTERVAL_MS);
+  window.addEventListener('focus', refreshFloatingTab);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshFloatingTab();
+    }
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key === READ_SYNC_KEY) {
+      refreshFloatingTab();
+    }
+  });
 }
 
 if (document.readyState === 'loading') {
