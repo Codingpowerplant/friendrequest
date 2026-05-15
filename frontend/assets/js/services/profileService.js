@@ -5,7 +5,25 @@ async function getProfile() {
 }
 
 async function getProfileById(userId) {
-  return apiFetch(`/users/${userId}/profile`, { headers: jsonHeaders() });
+  try {
+    const response = await apiFetch(`/farmers/${userId}`, { headers: jsonHeaders(false) });
+    const farmer = response.data || {};
+    return {
+      ...response,
+      data: {
+        ...farmer,
+        userId: farmer.userId || farmer.id,
+        role: farmer.role || 'farmer',
+        products: farmer.productsLabel || farmer.products || '',
+        stats: {
+          products: Array.isArray(farmer.products) ? farmer.products.length : 0,
+          posts: Array.isArray(farmer.posts) ? farmer.posts.length : 0,
+        },
+      },
+    };
+  } catch {
+    return apiFetch(`/users/${userId}/profile`, { headers: jsonHeaders() });
+  }
 }
 
 async function updateProfile(updates) {

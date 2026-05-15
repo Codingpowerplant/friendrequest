@@ -24,7 +24,7 @@ function detectApiBase() {
   const host = window.location.hostname;
   if (host === 'localhost' || host === '127.0.0.1') {
     return LOCAL_API_BASE;
-  }
+    } 
 
   // For deployed static frontend, default to production API unless overridden.
   return PRODUCTION_API_BASE;
