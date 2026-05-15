@@ -116,6 +116,27 @@ async function sendFriendRequest(req, res, next) {
   }
 }
 
+async function getFriendRequests(req, res, next) {
+  try {
+    const [received, sent] = await Promise.all([
+      FriendRequest.find({ recipient: req.user._id, status: 'pending' })
+        .sort({ createdAt: -1 })
+        .populate('requester', 'fullName role email'),
+      FriendRequest.find({ requester: req.user._id, status: 'pending' })
+        .sort({ createdAt: -1 })
+        .populate('recipient', 'fullName role email'),
+    ]);
+
+    return successResponse(res, 'Friend requests retrieved.', {
+      received: received.map(serializeFriendRequest),
+      sent: sent.map(serializeFriendRequest),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   sendFriendRequest,
+  getFriendRequests,
 };
