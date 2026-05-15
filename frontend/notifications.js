@@ -1,65 +1,150 @@
-const notifications = [
-  {
-    id: 'order-spinach',
-    type: 'order',
-    title: 'New order request',
-    body: 'Maya Green Farm received a request for two crates of spinach for pickup today.',
-    time: '8 minutes ago',
-    href: 'product.html',
-    read: false,
-    sender: 'Maya Green Farm',
-    senderRole: 'Customer',
-  },
-  {
-    id: 'message-berry',
-    type: 'message',
-    title: 'New message from Ulsan Berry Co-op',
-    body: 'The strawberry boxes are packed and ready for pickup between 3 PM and 5 PM.',
-    time: '24 minutes ago',
-    href: 'messages.html',
-    read: false,
-    sender: 'Ulsan Berry Co-op',
-    senderRole: 'Customer',
-  },
-  {
-    id: 'profile-live',
-    type: 'market',
-    title: 'Profile is visible to buyers',
-    body: 'Your farmer profile is now appearing in FarmersHub search and nearby recommendations.',
-    time: 'Today',
-    href: 'profile.html',
-    read: true,
-    sender: 'FarmersHub Team',
-    senderRole: 'System',
-  },
-  {
-    id: 'listing-trending',
-    type: 'market',
-    title: 'Tomato listing is getting attention',
-    body: 'Your tomato listing was viewed more than usual this week. Consider updating quantity if stock changed.',
-    time: 'Yesterday',
-    href: 'product.html',
-    read: false,
-    sender: 'Marketplace Insights',
-    senderRole: 'System',
-  },
-  {
-    id: 'order-rice',
-    type: 'order',
-    title: 'Order marked complete',
-    body: 'The brown rice order was marked complete. Payment and review details are ready.',
-    time: 'Mon',
-    href: 'product.html',
-    read: true,
-    sender: 'Harvest Logistics',
-    senderRole: 'Customer',
-  },
-];
+import { API_BASE } from './assets/js/config/api.config.js';
+
+// API functions for notifications
+async function fetchNotifications() {
+  try {
+    const token = localStorage.getItem('fh_token');
+    if (!token) {
+      console.warn('No auth token found');
+      return [];
+    }
+
+    const response = await fetch(`${API_BASE}/notifications`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (result.success && result.data) {
+      return result.data.notifications.map(notification => ({
+        id: notification._id,
+        type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        time: formatTimeAgo(notification.createdAt),
+        href: getNotificationHref(notification),
+        read: notification.read,
+        sender: getNotificationSender(notification),
+        senderRole: getNotificationSenderRole(notification),
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
+}
+
+async function markAsRead(notificationId) {
+  try {
+    const token = localStorage.getItem('fh_token');
+    if (!token) return false;
+
+    const response = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    return false;
+  }
+}
+
+async function markAllAsRead() {
+  try {
+    const token = localStorage.getItem('fh_token');
+    if (!token) return false;
+
+    const response = await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    return false;
+  }
+}
+
+// Helper functions
+function formatTimeAgo(dateString) {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+
+  return date.toLocaleDateString();
+}
+
+function getNotificationHref(notification) {
+  switch (notification.type) {
+    case 'message':
+      return 'messages.html';
+    case 'order':
+      return 'product.html';
+    case 'friend_request':
+      return notification.relatedId?._id
+        ? `profile.html?id=${notification.relatedId._id}`
+        : 'profile.html';
+    case 'market':
+      return 'profile.html';
+    default:
+      return '#';
+  }
+}
+
+function getNotificationSender(notification) {
+  if (notification.type === 'friend_request' && notification.relatedId?.fullName) {
+    return notification.relatedId.fullName;
+  }
+
+  if (notification.user && notification.user.fullName) {
+    return notification.user.fullName;
+  }
+  return 'FarmersHub Team';
+}
+
+function getNotificationSenderRole(notification) {
+  const user = notification.type === 'friend_request' && notification.relatedId?.role
+    ? notification.relatedId
+    : notification.user;
+
+  if (user && user.role) {
+    return user.role === 'farmer' ? 'Farmer' : 'Customer';
+  }
+  return 'System';
+}
+
+let notifications = []; // Will be populated from API
 
 const typeLabels = {
   order: 'Order',
   message: 'Message',
   market: 'Marketplace',
+  system: 'System',
+  friend_request: 'Friend Request',
 };
 
 const listEl = document.getElementById('notificationList');
@@ -278,6 +363,9 @@ function sendReply() {
     return closeReplyModal();
   }
 
+  // Mark as read via API
+  markAsRead(currentReplyTargetId);
+
   item.read = true;
   statusEl.textContent = messageText
     ? `Reply sent to ${item.sender}.`
@@ -288,39 +376,42 @@ function sendReply() {
 
 function showHistory(item) {
   statusEl.textContent = `Showing message history for ${item.sender}.`;
+  // Mark as read via API
+  markAsRead(item.id);
   item.read = true;
   renderNotifications();
 }
 
-function simulateRealtimeUpdates() {
-  setInterval(() => {
-    const nextId = `message-${Date.now()}`;
-    const newNotification = {
-      id: nextId,
-      type: 'message',
-      title: 'New customer chat',
-      body: 'A customer wants to check farm availability and delivery timing.',
-      time: 'Just now',
-      href: 'messages.html',
-      read: false,
-      sender: 'Harvest Market',
-      senderRole: 'Customer',
-    };
+async function pollForNewNotifications() {
+  setInterval(async () => {
+    const freshNotifications = await fetchNotifications();
+    const hasNewNotifications = freshNotifications.length > notifications.length ||
+      freshNotifications.some((newNotif, index) => {
+        const oldNotif = notifications[index];
+        return !oldNotif || newNotif.id !== oldNotif.id;
+      });
 
-    notifications.unshift(newNotification);
-    statusEl.textContent = 'New realtime notification has arrived.';
-    renderNotifications();
-  }, 25000);
+    if (hasNewNotifications) {
+      notifications = freshNotifications;
+      statusEl.textContent = 'New notifications available.';
+      renderNotifications();
+    }
+  }, 30000); // Poll every 30 seconds
 }
 
-function handleNotificationListClick(event) {
+async function handleNotificationListClick(event) {
   const toggleBtn = event.target.closest('button[data-action="toggle-read"]');
   if (toggleBtn) {
     const card = toggleBtn.closest('.notification-card');
-    const item = notifications.find((notification) => notification.id === card.dataset.id);
-    if (item) {
-      item.read = !item.read;
-      renderNotifications();
+    const notificationId = card.dataset.id;
+    const success = await markAsRead(notificationId);
+    if (success) {
+      // Update local state
+      const item = notifications.find(n => n.id === notificationId);
+      if (item) {
+        item.read = !item.read;
+        renderNotifications();
+      }
     }
     return;
   }
@@ -328,7 +419,7 @@ function handleNotificationListClick(event) {
   const replyBtn = event.target.closest('button[data-action="reply"]');
   if (replyBtn) {
     const card = replyBtn.closest('.notification-card');
-    const item = notifications.find((notification) => notification.id === card.dataset.id);
+    const item = notifications.find(n => n.id === card.dataset.id);
     if (item) {
       openReplyModal(item);
     }
@@ -338,7 +429,7 @@ function handleNotificationListClick(event) {
   const historyBtn = event.target.closest('button[data-action="history"]');
   if (historyBtn) {
     const card = historyBtn.closest('.notification-card');
-    const item = notifications.find((notification) => notification.id === card.dataset.id);
+    const item = notifications.find(n => n.id === card.dataset.id);
     if (item) {
       showHistory(item);
     }
@@ -363,18 +454,29 @@ replyModal.addEventListener('click', (event) => {
   }
 });
 
-markAllReadBtn.addEventListener('click', () => {
-  notifications.forEach((item) => {
-    item.read = true;
-  });
+markAllReadBtn.addEventListener('click', async () => {
+  const success = await markAllAsRead();
+  if (success) {
+    notifications.forEach((item) => {
+      item.read = true;
+    });
+    renderNotifications();
+  }
+});
+
+refreshBtn.addEventListener('click', async () => {
+  statusEl.textContent = 'Refreshing notifications...';
+  const freshNotifications = await fetchNotifications();
+  notifications = freshNotifications;
+  statusEl.textContent = 'Notifications refreshed just now.';
   renderNotifications();
 });
 
-refreshBtn.addEventListener('click', () => {
-  statusEl.textContent = 'Notifications refreshed just now.';
-  window.setTimeout(renderNotifications, 700);
-});
+async function initializeNotifications() {
+  notifications = await fetchNotifications();
+  renderNotifications();
+}
 
 setupSessionNav();
-renderNotifications();
-simulateRealtimeUpdates();
+initializeNotifications();
+pollForNewNotifications();

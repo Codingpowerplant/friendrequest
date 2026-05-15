@@ -4,6 +4,10 @@ async function getProfile() {
   return apiFetch('/users/profile', { headers: jsonHeaders() });
 }
 
+async function getProfileById(userId) {
+  return apiFetch(`/users/${userId}/profile`, { headers: jsonHeaders() });
+}
+
 async function updateProfile(updates) {
   return apiFetch('/users/profile', {
     method: 'PUT',
@@ -40,4 +44,20 @@ async function uploadCover(file) {
   });
 }
 
-export { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover };
+async function sendFriendRequest(recipientId) {
+  return apiFetch('/friend-requests', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ recipientId }),
+  });
+}
+
+export {
+  getProfile,
+  getProfileById,
+  updateProfile,
+  updateFarmerProfile,
+  uploadAvatar,
+  uploadCover,
+  sendFriendRequest,
+};
