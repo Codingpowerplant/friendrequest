@@ -7,7 +7,7 @@ const AUTH_STORAGE_KEYS = ['fh_token', 'farmershub_token', 'fh_user', 'fh_logged
 function getApiBase() {
   const override = window.FARMERSHUB_API_BASE || "";
   if (override.trim()) return override.replace(/\/+$/, "");
-  return "https://farmershub-kkjd.onrender.com/api";
+  return "https://farmershub-api.onrender.com/api";
 }
 
 function jsonHeaders() {
