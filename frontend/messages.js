@@ -1,3 +1,5 @@
+import './assets/js/notification-float.js';
+
 const conversations = [
   {
     id: 'maya',

@@ -9,6 +9,7 @@ import {
 } from './js/profileService.js';
 import { getFeed, createPost, deletePost } from './js/postService.js';
 import { getCurrentUser, isLoggedIn, logout } from './js/authService.js';
+import './assets/js/notification-float.js';
 
 let currentProfile = null;
 let isViewingOwnProfile = true;

@@ -1,4 +1,5 @@
 import { getFarmers } from './js/farmerService.js';
+import './assets/js/notification-float.js';
 
 const main = document.querySelector('.farmer-profile');
 

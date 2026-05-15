@@ -5,6 +5,7 @@
  */
 import { getProducts } from './js/productService.js';
 import { isLoggedIn, logout } from './js/authService.js';
+import './assets/js/notification-float.js';
 
 let allProducts = [];
 let activeCategory = '';

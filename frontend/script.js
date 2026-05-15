@@ -1,6 +1,7 @@
 import { getFarmers } from './js/farmerService.js';
 import { getProducts } from './js/productService.js';
 import { getFeed } from './js/postService.js';
+import './assets/js/notification-float.js';
 
 // Hero Modal Handler
 function initHeroModal() {
