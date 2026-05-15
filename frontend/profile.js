@@ -14,7 +14,8 @@ let currentProfile = null;
 let isViewingOwnProfile = true;
 
 function getProfileIdFromUrl() {
-  return new URLSearchParams(window.location.search).get('id');
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id') || params.get('farmer') || params.get('userId');
 }
 
 function setStatus(message, type = 'info') {

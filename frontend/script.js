@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', initHeroModal);
         avatar.style.backgroundPosition = 'center';
       }
       const link = card.querySelector('.mini-link');
-      link.href = `profile.html?farmer=${encodeURIComponent(farmer.id)}`;
+      link.href = `profile.html?id=${encodeURIComponent(farmer.id)}`;
       farmerGrid.appendChild(card);
     });
   }
