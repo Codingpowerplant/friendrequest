@@ -1,29 +1,28 @@
 /**
  * API configuration with environment-aware defaults.
- * Override in production by setting window.FRIENDREQUEST_API_BASE or
- * window.FARMERSHUB_API_BASE before loading scripts.
+ * Override in production by setting window.FARMERSHUB_API_BASE before loading scripts.
  */
 
+const PRODUCTION_API_BASE = 'https://friendrequest.onrender.com/api';
 const LOCAL_API_BASE = 'http://localhost:5000/api';
-const RENDER_API_BASE = 'https://friendrequest.onrender.com/api';
 
 function normalizeBase(url) {
   return String(url || '').replace(/\/+$/, '');
 }
 
 function detectApiBase() {
-  if (typeof window === 'undefined') return '/api';
+  if (typeof window === 'undefined') return PRODUCTION_API_BASE;
 
-  const runtimeOverride = normalizeBase(window.FRIENDREQUEST_API_BASE || window.FARMERSHUB_API_BASE);
+  const runtimeOverride = normalizeBase(window.FARMERSHUB_API_BASE);
   if (runtimeOverride) return runtimeOverride;
 
-  if (window.location.protocol === 'file:') return LOCAL_API_BASE;
+  // Support local development when opening static files directly (file://).
+  if (window.location.protocol === 'file:') {
+    return PRODUCTION_API_BASE;
+  }
 
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') return LOCAL_API_BASE;
-  if (host.endsWith('.github.io')) return RENDER_API_BASE;
-
-  return `${window.location.origin}/api`;
+  // Match the login page: default to the deployed API unless explicitly overridden.
+  return PRODUCTION_API_BASE;
 }
 
 const API_BASE = detectApiBase();

@@ -40,7 +40,7 @@ Option A (recommended for this repo):
 Option B (static server):
 1. Serve `frontend/` with a static server.
 2. Ensure backend is running.
-3. Set `window.FRIENDREQUEST_API_BASE` to your API URL if needed.
+3. Set `window.FARMERSHUB_API_BASE` to your API URL if needed.
 
 ## Environment Variables
 Defined in `backend/.env.example`:
@@ -64,7 +64,7 @@ Never commit real secrets in git.
 
 ## Production Deployment
 
-### Render Deployment
+### Backend Deployment
 1. On Render, create a new **Web Service** from this GitHub repo, or use the included `render.yaml` blueprint.
 2. If creating the service manually, use:
    - Root directory: `backend`
@@ -74,18 +74,17 @@ Never commit real secrets in git.
 3. Set environment variables in the Render dashboard:
    - `MONGO_URI`: Your MongoDB Atlas connection string
    - `JWT_SECRET`: A secure random string
-   - `CLIENT_ORIGIN`: Your deployed frontend URL if it is hosted separately
+   - `CLIENT_ORIGIN`: Your deployed frontend URL (e.g., https://yourusername.github.io/farmershub)
    - `NODE_ENV`: production
 4. Do not set `PORT` on Render manually. Render provides it automatically.
 5. Ensure the hosting service supports persistent file storage or migrate uploads to cloud storage (e.g., Cloudinary, AWS S3).
-6. The expected backend URL for the included frontend config is `https://friendrequest.onrender.com/api`. If Render gives you a different service URL, set `window.FRIENDREQUEST_API_BASE` in the frontend before loading app scripts.
 
 ### Frontend Deployment
-1. Deploy `frontend/` folder to static hosting. The included GitHub Actions workflow publishes `frontend/` to GitHub Pages.
-2. If the API base is not the same origin, set `window.FRIENDREQUEST_API_BASE` in the HTML or via a script tag:
+1. Deploy `frontend/` folder to static hosting (e.g., GitHub Pages, Vercel, Netlify).
+2. If the API base is not the same origin, set `window.FARMERSHUB_API_BASE` in the HTML or via a script tag:
    ```html
    <script>
-     window.FRIENDREQUEST_API_BASE = 'https://your-backend-domain.com/api';
+     window.FARMERSHUB_API_BASE = 'https://your-backend-domain.com/api';
    </script>
    ```
 3. For GitHub Pages, use a custom domain or set the API base accordingly.
@@ -101,12 +100,11 @@ Main config file:
 - `frontend/assets/js/config/api.config.js`
 
 Resolution order:
-1. `window.FRIENDREQUEST_API_BASE` or `window.FARMERSHUB_API_BASE` (runtime override)
+1. `window.FARMERSHUB_API_BASE` (runtime override)
 2. Localhost fallback for local development
-3. `https://friendrequest.onrender.com/api` when hosted on GitHub Pages
-4. Same-origin `/api` fallback for a combined frontend/backend host
+3. Same-origin `/api` fallback for deployed static frontend
 
-For GitHub Pages plus Render, deploy the backend on Render and the frontend through the existing Pages workflow. Set `window.FRIENDREQUEST_API_BASE` only if your Render backend URL is not `https://friendrequest.onrender.com/api`.
+For production, set `window.FARMERSHUB_API_BASE` to your deployed backend URL (for example Render/Railway/Fly).
 
 ## Backend Hosting Limitation On GitHub Pages
 GitHub Pages hosts static files only.
