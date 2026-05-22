@@ -422,6 +422,7 @@ a {
 
 .btn-primary,
 .btn-edit,
+.btn-message,
 .btn-post,
 .btn-logout {
   background: var(--accent);
@@ -430,6 +431,7 @@ a {
 
 .btn-primary:hover,
 .btn-edit:hover,
+.btn-message:hover,
 .btn-post:hover,
 .btn-logout:hover {
   background: var(--accent-strong);

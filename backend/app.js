@@ -21,11 +21,11 @@ const friendRequestRoutes = require('./routes/friendRequests.routes');
 const app = express();
 
 // ── Security headers ───────────────────────────────────────────────────────────
-const isProduction = process.env.NODE_ENV === 'production';
 app.use(
   helmet({
-    // Existing frontend pages contain inline scripts; keep strict CSP in production.
-    contentSecurityPolicy: isProduction ? undefined : false,
+    // Existing frontend pages contain inline scripts, so keep CSP disabled until
+    // those pages are refactored to external scripts only.
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
@@ -79,9 +79,10 @@ if (process.env.NODE_ENV !== 'production') {
 // ── Serve uploaded files statically ───────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Serve frontend locally from the backend in development ───────────────────
+// ── Serve frontend from the backend, including Render production deploys ─────
 const frontendDir = path.resolve(__dirname, '..', 'frontend');
-if (process.env.NODE_ENV !== 'production' && fs.existsSync(frontendDir)) {
+const hasFrontend = fs.existsSync(frontendDir);
+if (hasFrontend) {
   app.use(express.static(frontendDir));
 }
 
@@ -100,9 +101,17 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/friend-requests', friendRequestRoutes);
 
-// ── 404 handler ────────────────────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+// ── Frontend fallback and API 404 handler ─────────────────────────────────────
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: 'Route not found' });
+  }
+
+  if (hasFrontend && req.accepts('html')) {
+    return res.sendFile(path.join(frontendDir, 'index.html'));
+  }
+
+  return res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 // ── Centralized error handler (must be last) ───────────────────────────────────

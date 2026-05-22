@@ -40,7 +40,7 @@ Option A (recommended for this repo):
 Option B (static server):
 1. Serve `frontend/` with a static server.
 2. Ensure backend is running.
-3. Set `window.FARMERSHUB_API_BASE` to your API URL if needed.
+3. Set `window.FRIENDREQUEST_API_BASE` to your API URL if needed.
 
 ## Environment Variables
 Defined in `backend/.env.example`:
@@ -64,7 +64,7 @@ Never commit real secrets in git.
 
 ## Production Deployment
 
-### Backend Deployment
+### Render Deployment
 1. On Render, create a new **Web Service** from this GitHub repo, or use the included `render.yaml` blueprint.
 2. If creating the service manually, use:
    - Root directory: `backend`
@@ -74,17 +74,18 @@ Never commit real secrets in git.
 3. Set environment variables in the Render dashboard:
    - `MONGO_URI`: Your MongoDB Atlas connection string
    - `JWT_SECRET`: A secure random string
-   - `CLIENT_ORIGIN`: Your deployed frontend URL (e.g., https://yourusername.github.io/farmershub)
+   - `CLIENT_ORIGIN`: Your deployed frontend URL if it is hosted separately
    - `NODE_ENV`: production
 4. Do not set `PORT` on Render manually. Render provides it automatically.
 5. Ensure the hosting service supports persistent file storage or migrate uploads to cloud storage (e.g., Cloudinary, AWS S3).
+6. The backend serves `frontend/` in production, so a single Render service can host both the app and API.
 
 ### Frontend Deployment
 1. Deploy `frontend/` folder to static hosting (e.g., GitHub Pages, Vercel, Netlify).
-2. If the API base is not the same origin, set `window.FARMERSHUB_API_BASE` in the HTML or via a script tag:
+2. If the API base is not the same origin, set `window.FRIENDREQUEST_API_BASE` in the HTML or via a script tag:
    ```html
    <script>
-     window.FARMERSHUB_API_BASE = 'https://your-backend-domain.com/api';
+     window.FRIENDREQUEST_API_BASE = 'https://your-backend-domain.com/api';
    </script>
    ```
 3. For GitHub Pages, use a custom domain or set the API base accordingly.
@@ -100,11 +101,11 @@ Main config file:
 - `frontend/assets/js/config/api.config.js`
 
 Resolution order:
-1. `window.FARMERSHUB_API_BASE` (runtime override)
+1. `window.FRIENDREQUEST_API_BASE` or `window.FARMERSHUB_API_BASE` (runtime override)
 2. Localhost fallback for local development
 3. Same-origin `/api` fallback for deployed static frontend
 
-For production, set `window.FARMERSHUB_API_BASE` to your deployed backend URL (for example Render/Railway/Fly).
+For same-origin Render deployment, no frontend override is needed. For separate static hosting, set `window.FRIENDREQUEST_API_BASE` to your deployed backend URL.
 
 ## Backend Hosting Limitation On GitHub Pages
 GitHub Pages hosts static files only.
@@ -121,3 +122,7 @@ From `backend/`:
 - `npm run start` - production start
 - `npm run seed` - demo data seed
 - `npm run test` - test suite
+
+## Usage Notice
+
+This project is provided for approved project review and development purposes only. Unauthorized copying, misuse, redistribution, resubmission, or claiming of this work without permission is not allowed and may lead to academic, institutional, or legal action.

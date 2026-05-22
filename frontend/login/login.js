@@ -5,9 +5,15 @@ const API_BASE = getApiBase();
 const AUTH_STORAGE_KEYS = ['fh_token', 'farmershub_token', 'fh_user', 'fh_loggedIn', 'fh_role', 'currentUser'];
 
 function getApiBase() {
-  const override = window.FARMERSHUB_API_BASE || "";
+  const override = window.FRIENDREQUEST_API_BASE || window.FARMERSHUB_API_BASE || "";
   if (override.trim()) return override.replace(/\/+$/, "");
-  return "https://farmershub-api.onrender.com/api";
+
+  if (window.location.protocol === "file:") return "http://localhost:5000/api";
+
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:5000/api";
+
+  return `${window.location.origin}/api`;
 }
 
 function jsonHeaders() {

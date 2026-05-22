@@ -3,11 +3,11 @@ function normalizeBase(url) {
 }
 
 function detectApiBase() {
-  const runtimeOverride = normalizeBase(window.FARMERSHUB_API_BASE);
+  const runtimeOverride = normalizeBase(window.FRIENDREQUEST_API_BASE || window.FARMERSHUB_API_BASE);
   if (runtimeOverride) return runtimeOverride;
 
   if (window.location.protocol === 'file:') {
-    return 'https://farmershub-api.onrender.com/api';
+    return 'http://localhost:5000/api';
   }
 
   const host = window.location.hostname;
@@ -15,7 +15,7 @@ function detectApiBase() {
     return 'http://localhost:5000/api';
   }
 
-  return 'https://farmershub-api.onrender.com/api';
+  return `${window.location.origin}/api`;
 }
 
 const API_BASE = detectApiBase();

@@ -1,22 +1,63 @@
-import {
-  getProfile,
-  getProfileById,
-  updateProfile,
-  updateFarmerProfile,
-  uploadAvatar,
-  uploadCover,
-  sendFriendRequest,
-} from './js/profileService.js';
+import { getProfile, updateProfile, updateFarmerProfile, uploadAvatar, uploadCover, sendFriendRequest } from './js/profileService.js';
+import { getFarmerById } from './js/farmerService.js';
 import { getFeed, createPost, deletePost } from './js/postService.js';
 import { getCurrentUser, isLoggedIn, logout } from './js/authService.js';
-import './assets/js/notification-float.js';
 
 let currentProfile = null;
-let isViewingOwnProfile = true;
+let isViewingPublicFarmer = false;
 
-function getProfileIdFromUrl() {
+function getRequestedFarmerId() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('id') || params.get('farmer') || params.get('userId');
+  return params.get('farmer') || params.get('farmerId') || params.get('id') || '';
+}
+
+function getCurrentUserId() {
+  const user = getCurrentUser();
+  return String(user?.id || user?._id || '');
+}
+
+function setPublicProfileActionsVisible(visible) {
+  ['messageProfileBtn', 'addFriendBtn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  });
+}
+
+function setOwnerControlsVisible(visible) {
+  setPublicProfileActionsVisible(!visible);
+
+  ['editProfileBtn', 'submitPostBtn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  });
+
+  ['coverInput', 'avatarInput', 'postImageInput'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !visible;
+  });
+
+  document.querySelectorAll('.cover-upload-btn, .avatar-upload-btn, .create-post-card').forEach((el) => {
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
+function normalisePublicFarmerProfile(farmer) {
+  return {
+    ...farmer,
+    role: 'farmer',
+    userId: farmer.id,
+    products: farmer.productsLabel || farmer.cropTypes?.join(', ') || '',
+    stats: {
+      posts: farmer.posts?.length || 0,
+      products: farmer.products?.length || 0,
+    },
+    posts: (farmer.posts || []).map((post) => ({
+      ...post,
+      text: post.text || post.content || '',
+      author: { name: farmer.fullName },
+      canDelete: false,
+    })),
+  };
 }
 
 function setStatus(message, type = 'info') {
@@ -65,9 +106,6 @@ function renderImage(targetId, placeholderId, url, placeholderFallback = '👤')
 
 function renderProfile(profile) {
   currentProfile = profile;
-  const currentUser = getCurrentUser();
-  const currentUserId = currentUser?.id || currentUser?._id;
-  isViewingOwnProfile = !getProfileIdFromUrl() || String(currentUserId) === String(profile.userId);
 
   document.getElementById('profileName').textContent = profile.fullName;
   document.getElementById('profileRole').textContent = profile.role === 'farmer' ? 'Farmer' : 'Customer';
@@ -88,25 +126,6 @@ function renderProfile(profile) {
     : '👤';
 }
 
-function updateProfileActions() {
-  const addFriendBtn = document.getElementById('addFriendBtn');
-  const editProfileBtn = document.getElementById('editProfileBtn');
-  const coverUploadBtn = document.querySelector('.cover-upload-btn');
-  const avatarUploadBtn = document.querySelector('.avatar-upload-btn');
-  const createPostCard = document.querySelector('.create-post-card');
-
-  if (addFriendBtn) {
-    addFriendBtn.style.display = isViewingOwnProfile ? 'none' : 'inline-flex';
-    addFriendBtn.disabled = false;
-    addFriendBtn.textContent = 'Add Friend';
-  }
-
-  if (editProfileBtn) editProfileBtn.style.display = isViewingOwnProfile ? 'inline-flex' : 'none';
-  if (coverUploadBtn) coverUploadBtn.style.display = isViewingOwnProfile ? 'inline-flex' : 'none';
-  if (avatarUploadBtn) avatarUploadBtn.style.display = isViewingOwnProfile ? 'inline-flex' : 'none';
-  if (createPostCard) createPostCard.style.display = isViewingOwnProfile ? 'block' : 'none';
-}
-
 function openEditModal() {
   if (!currentProfile) return;
 
@@ -121,10 +140,21 @@ function openEditModal() {
 }
 
 async function loadProfileData() {
-  const profileId = getProfileIdFromUrl();
-  const response = profileId ? await getProfileById(profileId) : await getProfile();
+  const requestedFarmerId = getRequestedFarmerId();
+  const isOwnRequestedProfile = requestedFarmerId && requestedFarmerId === getCurrentUserId();
+
+  if (requestedFarmerId && !isOwnRequestedProfile) {
+    isViewingPublicFarmer = true;
+    setOwnerControlsVisible(false);
+    const response = await getFarmerById(requestedFarmerId);
+    renderProfile(normalisePublicFarmerProfile(response.data));
+    return;
+  }
+
+  isViewingPublicFarmer = false;
+  setOwnerControlsVisible(true);
+  const response = await getProfile();
   renderProfile(response.data);
-  updateProfileActions();
 }
 
 function renderPosts(posts) {
@@ -140,7 +170,7 @@ function renderPosts(posts) {
       <div class="post-header">
         <strong>${post.author?.name || currentProfile?.fullName || 'User'}</strong>
         <small>${new Date(post.createdAt).toLocaleDateString()}</small>
-        <button class="delete-post-btn" data-id="${post.id}" title="Delete">✕</button>
+        ${post.canDelete === false || isViewingPublicFarmer ? '' : `<button class="delete-post-btn" data-id="${post.id}" title="Delete">✕</button>`}
       </div>
       ${post.text ? `<p class="post-text">${post.text}</p>` : ''}
       ${post.image ? `<img src="${post.image}" class="post-image" alt="Post image" />` : ''}
@@ -162,6 +192,12 @@ function renderPosts(posts) {
 
 async function loadPosts() {
   if (!currentProfile) return;
+
+  if (isViewingPublicFarmer) {
+    renderPosts(currentProfile.posts || []);
+    return;
+  }
+
   const response = await getFeed({ authorId: currentProfile.userId, limit: 100 });
   renderPosts(response.data || []);
 }
@@ -231,6 +267,57 @@ async function handleCoverUpload(event) {
   }
 }
 
+// Fix before merging to main: connect Add Friend button to the authenticated friend request API.
+async function handleAddFriend() {
+  if (!currentProfile?.userId) {
+    setStatus('Unable to find this user profile.', 'error');
+    return;
+  }
+
+  if (!isLoggedIn()) {
+    showAuthGate();
+    return;
+  }
+
+  const btn = document.getElementById('addFriendBtn');
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+    }
+    setStatus('Sending friend request...', 'info');
+    await sendFriendRequest(currentProfile.userId);
+    if (btn) btn.textContent = 'Request Sent';
+    setStatus('Friend request sent. The user will receive a notification.', 'success');
+  } catch (error) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '➕ Add Friend';
+    }
+    setStatus(error.message || 'Failed to send friend request.', 'error');
+  }
+}
+
+function handleMessageProfile() {
+  if (!currentProfile?.userId) {
+    setStatus('Unable to find this user profile.', 'error');
+    return;
+  }
+
+  if (!isLoggedIn()) {
+    showAuthGate();
+    return;
+  }
+
+  const params = new URLSearchParams({
+    recipientId: currentProfile.userId,
+    recipientName: currentProfile.fullName || 'FarmersHub member',
+    recipientRole: currentProfile.role || 'Direct message',
+  });
+
+  window.location.href = `messages.html?${params.toString()}`;
+}
+
 async function handlePostSubmit() {
   const text = document.getElementById('postInput').value.trim();
   const imageInput = document.getElementById('postImageInput');
@@ -267,31 +354,14 @@ async function handlePostSubmit() {
   }
 }
 
-async function handleAddFriend() {
-  if (!currentProfile || isViewingOwnProfile) return;
-
-  const addFriendBtn = document.getElementById('addFriendBtn');
-  const originalText = addFriendBtn.textContent;
-  addFriendBtn.disabled = true;
-  addFriendBtn.textContent = 'Sending...';
-
-  try {
-    const response = await sendFriendRequest(currentProfile.userId);
-    addFriendBtn.textContent = 'Request Sent';
-    setStatus(response.message || 'Friend request sent.', 'success');
-  } catch (error) {
-    addFriendBtn.disabled = false;
-    addFriendBtn.textContent = originalText;
-    setStatus(error.message || 'Failed to send friend request.', 'error');
-  }
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('goLoginBtn').addEventListener('click', () => {
     window.location.href = 'login/login.html';
   });
 
-  if (!isLoggedIn()) {
+  const requestedFarmerId = getRequestedFarmerId();
+
+  if (!requestedFarmerId && !isLoggedIn()) {
     showAuthGate();
     return;
   }
@@ -311,6 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('coverInput').addEventListener('change', handleCoverUpload);
   document.getElementById('submitPostBtn').addEventListener('click', handlePostSubmit);
   document.getElementById('addFriendBtn').addEventListener('click', handleAddFriend);
+  document.getElementById('messageProfileBtn').addEventListener('click', handleMessageProfile);
   document.getElementById('postImageInput').addEventListener('change', (event) => {
     const name = event.target.files[0] ? event.target.files[0].name : '';
     document.getElementById('postImageName').textContent = name;

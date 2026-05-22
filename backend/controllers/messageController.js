@@ -55,9 +55,14 @@ const getUserMessages = async (req, res, next) => {
 const sendMessage = async (req, res, next) => {
   try {
     const { receiverId, content, relatedProduct } = req.body;
+    const cleanContent = String(content || '').trim();
 
-    if (!receiverId || !content) {
+    if (!receiverId || !cleanContent) {
       return errorResponse(res, 'Receiver and content are required', 400);
+    }
+
+    if (String(receiverId) === String(req.user._id)) {
+      return errorResponse(res, 'You cannot message yourself', 400);
     }
 
     // Verify receiver exists
@@ -70,7 +75,7 @@ const sendMessage = async (req, res, next) => {
     const message = new Message({
       sender: req.user._id,
       receiver: receiverId,
-      content: content.trim(),
+      content: cleanContent,
       relatedProduct,
     });
 
@@ -79,7 +84,7 @@ const sendMessage = async (req, res, next) => {
     await message.populate('receiver', 'fullName role');
 
     // Create notification for the receiver
-    const truncatedContent = content.length > 50 ? content.substring(0, 50) + '...' : content;
+    const truncatedContent = cleanContent.length > 50 ? cleanContent.substring(0, 50) + '...' : cleanContent;
     await createNotification(
       receiverId,
       'message',

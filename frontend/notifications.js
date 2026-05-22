@@ -23,8 +23,13 @@ async function fetchNotifications() {
     }
 
     const result = await response.json();
-    if (result.success && result.data) {
-      return result.data.notifications.map(notification => ({
+    const notificationList = Array.isArray(result?.data?.notifications)
+      ? result.data.notifications
+      : [];
+
+    // Fix before merging to main: prevents API response shape changes from crashing the notification list.
+    if (result.success) {
+      return notificationList.map(notification => ({
         id: notification._id,
         type: notification.type,
         title: notification.title,
@@ -32,8 +37,10 @@ async function fetchNotifications() {
         time: formatTimeAgo(notification.createdAt),
         href: getNotificationHref(notification),
         read: notification.read,
+        recipientId: getNotificationRecipientId(notification),
         sender: getNotificationSender(notification),
         senderRole: getNotificationSenderRole(notification),
+        relatedUserId: notification.relatedId?._id || notification.relatedId || null,
       }));
     }
     return [];
@@ -41,6 +48,49 @@ async function fetchNotifications() {
     console.error('Error fetching notifications:', error);
     return [];
   }
+}
+
+// Fix before merging to main: load pending received requests so notification actions can accept/decline them.
+async function fetchFriendRequests() {
+  try {
+    const token = localStorage.getItem('fh_token');
+    if (!token) return [];
+
+    const response = await fetch(`${API_BASE}/friend-requests`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result?.data?.received) ? result.data.received : [];
+  } catch (error) {
+    console.error('Error fetching friend requests:', error);
+    return [];
+  }
+}
+
+// Fix before merging to main: call backend friendship action routes from notification buttons.
+async function respondFriendRequest(requestId, action) {
+  const token = localStorage.getItem('fh_token');
+  if (!token || !requestId) return false;
+
+  const response = await fetch(`${API_BASE}/friend-requests/${requestId}/${action}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return response.ok;
+}
+
+function getPendingFriendRequestForNotification(item) {
+  if (item.type !== 'friend_request' || !item.relatedUserId) return null;
+  return pendingFriendRequests.find((request) => request.requester === item.relatedUserId) || null;
 }
 
 async function markAsRead(notificationId) {
@@ -102,8 +152,17 @@ function formatTimeAgo(dateString) {
 
 function getNotificationHref(notification) {
   switch (notification.type) {
-    case 'message':
-      return 'messages.html';
+    case 'message': {
+      const sender = notification.relatedId?.sender;
+      const senderId = sender?._id || sender;
+      const params = new URLSearchParams();
+      if (senderId) params.set('recipientId', senderId);
+      if (sender?.fullName) params.set('recipientName', sender.fullName);
+      if (sender?.role) params.set('recipientRole', sender.role);
+
+      const query = params.toString();
+      return query ? `messages.html?${query}` : 'messages.html';
+    }
     case 'order':
       return 'product.html';
     case 'friend_request':
@@ -118,6 +177,10 @@ function getNotificationHref(notification) {
 }
 
 function getNotificationSender(notification) {
+  if (notification.type === 'message' && notification.relatedId?.sender?.fullName) {
+    return notification.relatedId.sender.fullName;
+  }
+
   if (notification.type === 'friend_request' && notification.relatedId?.fullName) {
     return notification.relatedId.fullName;
   }
@@ -128,10 +191,21 @@ function getNotificationSender(notification) {
   return 'FarmersHub Team';
 }
 
+function getNotificationRecipientId(notification) {
+  if (notification.type !== 'message') {
+    return null;
+  }
+
+  const sender = notification.relatedId?.sender;
+  return sender?._id || (typeof sender === 'string' ? sender : null);
+}
+
 function getNotificationSenderRole(notification) {
-  const user = notification.type === 'friend_request' && notification.relatedId?.role
-    ? notification.relatedId
-    : notification.user;
+  const user = notification.type === 'message' && notification.relatedId?.sender?.role
+    ? notification.relatedId.sender
+    : notification.type === 'friend_request' && notification.relatedId?.role
+      ? notification.relatedId
+      : notification.user;
 
   if (user && user.role) {
     return user.role === 'farmer' ? 'Farmer' : 'Customer';
@@ -140,6 +214,7 @@ function getNotificationSenderRole(notification) {
 }
 
 let notifications = []; // Will be populated from API
+let pendingFriendRequests = []; // Fix before merging to main: used to accept/decline friend request notifications.
 
 const typeLabels = {
   order: 'Order',
@@ -148,6 +223,18 @@ const typeLabels = {
   system: 'System',
   friend_request: 'Friend Request',
 };
+
+// Fix before merging to main: prevents notification filtering/rendering from crashing when the backend sends an unknown type.
+function getTypeLabel(type) {
+  return typeLabels[type] || 'Notification';
+}
+
+// Fix before merging to main: keeps the notifications page running even if an optional UI element is missing.
+function addSafeListener(element, eventName, handler) {
+  if (element) {
+    element.addEventListener(eventName, handler);
+  }
+}
 
 const listEl = document.getElementById('notificationList');
 const statusEl = document.getElementById('notificationStatus');
@@ -218,7 +305,7 @@ function getFilteredNotifications() {
       || item.title.toLowerCase().includes(term)
       || item.body.toLowerCase().includes(term)
       || item.sender.toLowerCase().includes(term)
-      || typeLabels[item.type].toLowerCase().includes(term);
+      || getTypeLabel(item.type).toLowerCase().includes(term);
 
     return matchesFilter && matchesSearch;
   });
@@ -258,7 +345,7 @@ function createNotificationCard(item) {
 
   const kicker = document.createElement('span');
   kicker.className = 'notification-kicker';
-  kicker.textContent = typeLabels[item.type];
+  kicker.textContent = getTypeLabel(item.type);
 
   const title = document.createElement('h3');
   title.textContent = item.title;
@@ -303,6 +390,24 @@ function createNotificationCard(item) {
     historyBtn.dataset.action = 'history';
     historyBtn.textContent = 'Message history';
     actions.append(historyBtn);
+  }
+
+  if (item.type === 'friend_request') {
+    const pendingRequest = getPendingFriendRequestForNotification(item);
+
+    if (pendingRequest) {
+      const acceptBtn = document.createElement('button');
+      acceptBtn.type = 'button';
+      acceptBtn.dataset.action = 'accept-friend-request';
+      acceptBtn.textContent = 'Accept';
+      actions.append(acceptBtn);
+
+      const declineBtn = document.createElement('button');
+      declineBtn.type = 'button';
+      declineBtn.dataset.action = 'decline-friend-request';
+      declineBtn.textContent = 'Decline';
+      actions.append(declineBtn);
+    }
   }
 
   const readBtn = document.createElement('button');
@@ -359,7 +464,7 @@ function closeReplyModal() {
   replyModal.setAttribute('aria-hidden', 'true');
 }
 
-function sendReply() {
+async function sendReply() {
   if (!currentReplyTargetId) {
     return;
   }
@@ -370,30 +475,53 @@ function sendReply() {
     return closeReplyModal();
   }
 
-  // Mark as read via API
-  markAsRead(currentReplyTargetId);
+  try {
+    if (messageText && item.type === 'message' && item.recipientId) {
+      const token = localStorage.getItem('fh_token');
+      const response = await fetch(`${API_BASE}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          receiverId: item.recipientId,
+          content: messageText,
+        }),
+      });
 
-  item.read = true;
-  syncFloatingAlertState();
-  statusEl.textContent = messageText
-    ? `Reply sent to ${item.sender}.`
-    : `Closed reply to ${item.sender}.`;
-  closeReplyModal();
-  renderNotifications();
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.message || 'Failed to send reply.');
+      }
+    }
+
+    await markAsRead(currentReplyTargetId);
+    item.read = true;
+    syncFloatingAlertState();
+    statusEl.textContent = messageText
+      ? `Reply sent to ${item.sender}.`
+      : `Closed reply to ${item.sender}.`;
+    closeReplyModal();
+    renderNotifications();
+  } catch (error) {
+    statusEl.textContent = error.message || 'Failed to send reply.';
+  }
 }
 
-function showHistory(item) {
+async function showHistory(item) {
   statusEl.textContent = `Showing message history for ${item.sender}.`;
-  // Mark as read via API
-  markAsRead(item.id);
+  await markAsRead(item.id);
   item.read = true;
   syncFloatingAlertState();
   renderNotifications();
+  window.location.href = item.href || 'messages.html';
 }
 
 async function pollForNewNotifications() {
   setInterval(async () => {
     const freshNotifications = await fetchNotifications();
+    const freshFriendRequests = await fetchFriendRequests();
     const hasNewNotifications = freshNotifications.length > notifications.length ||
       freshNotifications.some((newNotif, index) => {
         const oldNotif = notifications[index];
@@ -402,6 +530,7 @@ async function pollForNewNotifications() {
 
     if (hasNewNotifications) {
       notifications = freshNotifications;
+      pendingFriendRequests = freshFriendRequests;
       statusEl.textContent = 'New notifications available.';
       renderNotifications();
     }
@@ -426,6 +555,36 @@ async function handleNotificationListClick(event) {
     return;
   }
 
+  const friendActionBtn = event.target.closest('button[data-action="accept-friend-request"], button[data-action="decline-friend-request"]');
+  if (friendActionBtn) {
+    const card = friendActionBtn.closest('.notification-card');
+    const item = notifications.find(n => n.id === card?.dataset.id);
+    const pendingRequest = item ? getPendingFriendRequestForNotification(item) : null;
+    const action = friendActionBtn.dataset.action === 'accept-friend-request' ? 'accept' : 'decline';
+
+    if (!pendingRequest) {
+      statusEl.textContent = 'This friend request is no longer pending.';
+      return;
+    }
+
+    friendActionBtn.disabled = true;
+    const success = await respondFriendRequest(pendingRequest.id, action);
+    if (success) {
+      pendingFriendRequests = pendingFriendRequests.filter((request) => request.id !== pendingRequest.id);
+      if (item) {
+        item.read = true;
+        await markAsRead(item.id);
+      }
+      syncFloatingAlertState();
+      statusEl.textContent = action === 'accept' ? 'Friend request accepted.' : 'Friend request declined.';
+      renderNotifications();
+    } else {
+      friendActionBtn.disabled = false;
+      statusEl.textContent = 'Failed to update friend request.';
+    }
+    return;
+  }
+
   const replyBtn = event.target.closest('button[data-action="reply"]');
   if (replyBtn) {
     const card = replyBtn.closest('.notification-card');
@@ -443,6 +602,20 @@ async function handleNotificationListClick(event) {
     if (item) {
       showHistory(item);
     }
+    return;
+  }
+
+  const openLink = event.target.closest('a.open-link');
+  if (openLink) {
+    event.preventDefault();
+    const card = openLink.closest('.notification-card');
+    const item = notifications.find(n => n.id === card?.dataset.id);
+    if (item && !item.read) {
+      await markAsRead(item.id);
+      item.read = true;
+      syncFloatingAlertState();
+    }
+    window.location.href = openLink.href;
   }
 }
 
@@ -453,18 +626,18 @@ tabBtns.forEach((button) => {
   });
 });
 
-searchEl.addEventListener('input', renderNotifications);
-listEl.addEventListener('click', handleNotificationListClick);
-sendReplyBtn.addEventListener('click', sendReply);
-cancelReplyBtn.addEventListener('click', closeReplyModal);
-closeReplyModalBtn.addEventListener('click', closeReplyModal);
-replyModal.addEventListener('click', (event) => {
+addSafeListener(searchEl, 'input', renderNotifications);
+addSafeListener(listEl, 'click', handleNotificationListClick);
+addSafeListener(sendReplyBtn, 'click', sendReply);
+addSafeListener(cancelReplyBtn, 'click', closeReplyModal);
+addSafeListener(closeReplyModalBtn, 'click', closeReplyModal);
+addSafeListener(replyModal, 'click', (event) => {
   if (event.target === replyModal) {
     closeReplyModal();
   }
 });
 
-markAllReadBtn.addEventListener('click', async () => {
+addSafeListener(markAllReadBtn, 'click', async () => {
   const success = await markAllAsRead();
   if (success) {
     notifications.forEach((item) => {
@@ -475,16 +648,19 @@ markAllReadBtn.addEventListener('click', async () => {
   }
 });
 
-refreshBtn.addEventListener('click', async () => {
+addSafeListener(refreshBtn, 'click', async () => {
   statusEl.textContent = 'Refreshing notifications...';
   const freshNotifications = await fetchNotifications();
+  const freshFriendRequests = await fetchFriendRequests();
   notifications = freshNotifications;
+  pendingFriendRequests = freshFriendRequests;
   statusEl.textContent = 'Notifications refreshed just now.';
   renderNotifications();
 });
 
 async function initializeNotifications() {
   notifications = await fetchNotifications();
+  pendingFriendRequests = await fetchFriendRequests();
   renderNotifications();
 }
 
