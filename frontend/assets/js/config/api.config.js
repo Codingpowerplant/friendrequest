@@ -5,6 +5,7 @@
  */
 
 const LOCAL_API_BASE = 'http://localhost:5000/api';
+const RENDER_API_BASE = 'https://friendrequest.onrender.com/api';
 
 function normalizeBase(url) {
   return String(url || '').replace(/\/+$/, '');
@@ -20,6 +21,7 @@ function detectApiBase() {
 
   const host = window.location.hostname;
   if (host === 'localhost' || host === '127.0.0.1') return LOCAL_API_BASE;
+  if (host.endsWith('.github.io')) return RENDER_API_BASE;
 
   return `${window.location.origin}/api`;
 }

@@ -78,10 +78,10 @@ Never commit real secrets in git.
    - `NODE_ENV`: production
 4. Do not set `PORT` on Render manually. Render provides it automatically.
 5. Ensure the hosting service supports persistent file storage or migrate uploads to cloud storage (e.g., Cloudinary, AWS S3).
-6. The backend serves `frontend/` in production, so a single Render service can host both the app and API.
+6. The expected backend URL for the included frontend config is `https://friendrequest.onrender.com/api`. If Render gives you a different service URL, set `window.FRIENDREQUEST_API_BASE` in the frontend before loading app scripts.
 
 ### Frontend Deployment
-1. Deploy `frontend/` folder to static hosting (e.g., GitHub Pages, Vercel, Netlify).
+1. Deploy `frontend/` folder to static hosting. The included GitHub Actions workflow publishes `frontend/` to GitHub Pages.
 2. If the API base is not the same origin, set `window.FRIENDREQUEST_API_BASE` in the HTML or via a script tag:
    ```html
    <script>
@@ -103,9 +103,10 @@ Main config file:
 Resolution order:
 1. `window.FRIENDREQUEST_API_BASE` or `window.FARMERSHUB_API_BASE` (runtime override)
 2. Localhost fallback for local development
-3. Same-origin `/api` fallback for deployed static frontend
+3. `https://friendrequest.onrender.com/api` when hosted on GitHub Pages
+4. Same-origin `/api` fallback for a combined frontend/backend host
 
-For same-origin Render deployment, no frontend override is needed. For separate static hosting, set `window.FRIENDREQUEST_API_BASE` to your deployed backend URL.
+For GitHub Pages plus Render, deploy the backend on Render and the frontend through the existing Pages workflow. Set `window.FRIENDREQUEST_API_BASE` only if your Render backend URL is not `https://friendrequest.onrender.com/api`.
 
 ## Backend Hosting Limitation On GitHub Pages
 GitHub Pages hosts static files only.

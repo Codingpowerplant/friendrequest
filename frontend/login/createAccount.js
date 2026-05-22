@@ -2,6 +2,8 @@ function normalizeBase(url) {
   return String(url || '').replace(/\/+$/, '');
 }
 
+const RENDER_API_BASE = 'https://friendrequest.onrender.com/api';
+
 function detectApiBase() {
   const runtimeOverride = normalizeBase(window.FRIENDREQUEST_API_BASE || window.FARMERSHUB_API_BASE);
   if (runtimeOverride) return runtimeOverride;
@@ -14,6 +16,7 @@ function detectApiBase() {
   if (host === 'localhost' || host === '127.0.0.1') {
     return 'http://localhost:5000/api';
   }
+  if (host.endsWith('.github.io')) return RENDER_API_BASE;
 
   return `${window.location.origin}/api`;
 }

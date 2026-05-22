@@ -3,6 +3,7 @@ let selectedRole = "";
 let authMode = "login";
 const API_BASE = getApiBase();
 const AUTH_STORAGE_KEYS = ['fh_token', 'farmershub_token', 'fh_user', 'fh_loggedIn', 'fh_role', 'currentUser'];
+const RENDER_API_BASE = "https://friendrequest.onrender.com/api";
 
 function getApiBase() {
   const override = window.FRIENDREQUEST_API_BASE || window.FARMERSHUB_API_BASE || "";
@@ -12,6 +13,7 @@ function getApiBase() {
 
   const host = window.location.hostname;
   if (host === "localhost" || host === "127.0.0.1") return "http://localhost:5000/api";
+  if (host.endsWith(".github.io")) return RENDER_API_BASE;
 
   return `${window.location.origin}/api`;
 }
