@@ -7,7 +7,7 @@ function detectApiBase() {
   if (runtimeOverride) return runtimeOverride;
 
   if (window.location.protocol === 'file:') {
-    return 'https://friendrequest.onrender.com/api';
+    return 'https://farmershub-api.onrender.com/api';
   }
 
   const host = window.location.hostname;
@@ -15,7 +15,7 @@ function detectApiBase() {
     return 'http://localhost:5000/api';
   }
 
-  return 'https://friendrequest.onrender.com/api';
+  return 'https://farmershub-api.onrender.com/api';
 }
 
 const API_BASE = detectApiBase();

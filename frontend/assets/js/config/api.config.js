@@ -3,7 +3,7 @@
  * Override in production by setting window.FARMERSHUB_API_BASE before loading scripts.
  */
 
-const PRODUCTION_API_BASE = 'https://friendrequest.onrender.com/api';
+const PRODUCTION_API_BASE = 'https://farmershub-api.onrender.com/api';
 const LOCAL_API_BASE = 'http://localhost:5000/api';
 
 function normalizeBase(url) {
